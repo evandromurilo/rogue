@@ -7,17 +7,19 @@
 (in-package :rogue)
 
 (defun main ()
-  (let ((game-map (make-array '(20 20) :initial-element #\.))
-	(p-x 5)
-	(p-y 5))
+  (let* ((game-map (load-map))
+	 (width (array-dimension game-map 1))
+	 (height (array-dimension game-map 0))
+	 (p-x 5)
+	 (p-y 5))
     (charms:with-curses ()
       (loop
 	(charms/ll:clear)
-	(dotimes (row 20)
-	  (dotimes (col 20)
+	(dotimes (row height)
+	  (dotimes (col width)
 	    (charms/ll:mvaddch row col (char-code (aref game-map row col)))))
 	(charms/ll:mvaddch p-y p-x (char-code #\@))
-	(charms/ll:mvaddstr 22 0 "Welcome to the dungeon")
+	(charms/ll:mvaddstr (+ height 1) 0 "Welcome to the dungeon")
 	(charms/ll:refresh)
 	(let ((ch (charms/ll:getch)))
 	  (case (code-char ch)
@@ -33,4 +35,19 @@
 	    (otherwise nil)))))))
 	  
   
-  
+(defun load-map ()
+  (with-open-file (stream "map.txt" :direction :input)
+    (let ((lines (loop for line = (read-line stream nil nil)
+		       while line
+		       collect line)))
+      (let* ((height (length lines))
+	     (width (length (car lines)))
+	     (game-map (make-array (list height width))))
+	(dotimes (row height)
+	  (dotimes (col width)
+	    (setf (aref game-map row col) (char (nth row lines) col))))
+	game-map))))
+      
+
+		       
+      
