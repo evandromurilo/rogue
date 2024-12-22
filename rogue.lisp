@@ -21,7 +21,7 @@
 	(charms/ll:clear)
 	(dotimes (row (game-state-height gs))
 	  (dotimes (col (game-state-width gs))
-	    (charms/ll:mvaddch row col (char-code (tile-at gs row col)))))
+	    (charms/ll:mvaddch row col (char-code (tile-at gs col row)))))
 	(charms/ll:mvaddch (game-state-p-y gs) (game-state-p-x gs) (char-code #\@))
 	(charms/ll:mvaddstr (+ (game-state-height gs) 1) 0 (game-state-msg gs))
 	(charms/ll:refresh)
@@ -48,12 +48,18 @@
     gs))
 
 (defun tile-at (gs x y)
-  (aref (game-state-map gs) x y))
+  (aref (game-state-map gs) y x))
 
 (defun attempt-move (gs dx dy)
-  (incf (game-state-p-x gs) dx)
-  (incf (game-state-p-y gs) dy))
-  
+  (let ((x (+ (game-state-p-x gs) dx))
+	(y (+ (game-state-p-y gs) dy)))
+    (case (tile-at gs x y)
+      (#\# (setf (game-state-msg gs) "There is a wall there!"))
+      (otherwise (progn
+		   (setf (game-state-msg gs) "")
+		   (setf (game-state-p-x gs) x)
+		   (setf (game-state-p-y gs) y))))))
+    
 (defun load-map ()
   (with-open-file (stream "map.txt" :direction :input)
     (let ((lines (loop for line = (read-line stream nil nil)
