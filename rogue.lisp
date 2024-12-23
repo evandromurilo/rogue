@@ -80,9 +80,6 @@
 	(loop for y from ly to (- hy 1) do
 	  (setf (aref (game-state-discovered gs) y x) t))))))
 	   
-    
-    
-
 (defun attempt-move (gs dx dy)
   (let ((x (+ (game-state-p-x gs) dx))
 	(y (+ (game-state-p-y gs) dy)))

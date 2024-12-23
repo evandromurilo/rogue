@@ -7,4 +7,6 @@ next:
 [x] walls and collision
 enemies with autonomous movement
 basic combat
-vision and map discovery
+[x] vision and map discovery
+do not see beyond vision
+do not see through walls
