@@ -11,6 +11,7 @@
   (width 0)
   (height 0)
   (msg "Welcome to the dungeon")
+  (discovered nil)
   (p-x 5)
   (p-y 5))
 
@@ -21,7 +22,7 @@
 	(charms/ll:clear)
 	(dotimes (row (game-state-height gs))
 	  (dotimes (col (game-state-width gs))
-	    (charms/ll:mvaddch row col (char-code (tile-at gs col row)))))
+	    (charms/ll:mvaddch row col (char-code (visible-tile-at gs col row)))))
 	(charms/ll:mvaddch (game-state-p-y gs) (game-state-p-x gs) (char-code #\@))
 	(charms/ll:mvaddstr (+ (game-state-height gs) 1) 0 (game-state-msg gs))
 	(charms/ll:refresh)
@@ -45,10 +46,42 @@
 	  (array-dimension (game-state-map gs) 1))
     (setf (game-state-height gs)
 	  (array-dimension (game-state-map gs) 0))
+    (setf (game-state-discovered gs) (make-array (list (game-state-height gs) (game-state-width gs)) :initial-element nil))
+    (discover gs)
     gs))
 
 (defun tile-at (gs x y)
   (aref (game-state-map gs) y x))
+
+(defun visible-tile-at (gs x y)
+  (if (aref (game-state-discovered gs) y x)
+      (tile-at gs x y)
+      #\ ))
+
+(defun discover (gs)
+  (let ((view-range 2)
+	(x (game-state-p-x gs))
+	(y (game-state-p-y gs))
+	(w (game-state-width gs))
+	(h (game-state-height gs)))
+    (let ((lx (if (< (- x view-range) 0) ;; low x
+		  0
+		  (- x view-range)))
+	  (hx (if (> (+ x view-range) w) ;; high x
+		  w
+		  (+ x view-range)))
+	  (ly (if (< (- y view-range) 0) ;; low y
+		  0
+		  (- y view-range)))
+	  (hy (if (> (+ y view-range) h) ;; high y
+		  h
+		  (+ y view-range))))
+      (loop for x from lx to (- hx 1) do
+	(loop for y from ly to (- hy 1) do
+	  (setf (aref (game-state-discovered gs) y x) t))))))
+	   
+    
+    
 
 (defun attempt-move (gs dx dy)
   (let ((x (+ (game-state-p-x gs) dx))
@@ -58,7 +91,8 @@
       (otherwise (progn
 		   (setf (game-state-msg gs) "")
 		   (setf (game-state-p-x gs) x)
-		   (setf (game-state-p-y gs) y))))))
+		   (setf (game-state-p-y gs) y)
+		   (discover gs))))))
     
 (defun load-map ()
   (with-open-file (stream "map.txt" :direction :input)
