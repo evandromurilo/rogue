@@ -64,18 +64,10 @@
 	(y (game-state-p-y gs))
 	(w (game-state-width gs))
 	(h (game-state-height gs)))
-    (let ((lx (if (< (- x view-range) 0) ;; low x
-		  0
-		  (- x view-range)))
-	  (hx (if (> (+ x view-range) w) ;; high x
-		  w
-		  (+ x view-range)))
-	  (ly (if (< (- y view-range) 0) ;; low y
-		  0
-		  (- y view-range)))
-	  (hy (if (> (+ y view-range) h) ;; high y
-		  h
-		  (+ y view-range))))
+    (let ((lx (max (- x view-range)  0)) ;; low x
+	  (hx (min (+ x view-range)  w)) ;; high x
+	  (ly (max (- y view-range)  0)) ;; low y
+	  (hy (min (+ y view-range)  h))) ;; high y
       (loop for x from lx to (- hx 1) do
 	(loop for y from ly to (- hy 1) do
 	  (setf (aref (game-state-discovered gs) y x) t))))))
