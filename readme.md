@@ -8,5 +8,5 @@ next:
 enemies with autonomous movement
 basic combat
 [x] vision and map discovery
-do not see beyond vision
-do not see through walls
+[x] do not see beyond vision
+[x] do not see through walls

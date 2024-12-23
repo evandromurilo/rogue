@@ -18,11 +18,21 @@
 (defun main ()
   (let ((gs (init-game-state)))
     (charms:with-curses ()
+      (charms/ll:start-color)
+      (charms/ll:init-pair 1 charms/ll:COLOR_WHITE charms/ll:COLOR_BLACK)
+      (charms/ll:init-pair 2 charms/ll:COLOR_YELLOW charms/ll:COLOR_BLACK)
+      
       (loop
 	(charms/ll:clear)
 	(dotimes (row (game-state-height gs))
 	  (dotimes (col (game-state-width gs))
+	    (if (is-visible gs col row)
+		(setf attr (charms/ll:color-pair 1))
+		(setf attr (charms/ll:color-pair 2)))
+	    (charms/ll:attron attr)
 	    (charms/ll:mvaddch row col (char-code (visible-tile-at gs col row)))))
+	(setf attr (charms/ll:color-pair 1))
+	(charms/ll:attron attr)
 	(charms/ll:mvaddch (game-state-p-y gs) (game-state-p-x gs) (char-code #\@))
 	(charms/ll:mvaddstr (+ (game-state-height gs) 1) 0 (game-state-msg gs))
 	(charms/ll:refresh)
@@ -93,6 +103,13 @@
 	((and (> sx tx) (< sy ty))
 	 (has-direct-path gs (- sx 1) (+ sy 1) tx ty)) ;; diagonal
 	(t nil)))
+
+(defun is-visible (gs tx ty)
+  (let ((view-range 2)
+	(dx (abs (- (game-state-p-x gs) tx)))
+	(dy (abs (- (game-state-p-y gs) ty))))
+    (and (<= (max dx dy) view-range)
+	 (has-direct-path gs (game-state-p-x gs) (game-state-p-y gs) tx ty))))
 	   
 (defun attempt-move (gs dx dy)
   (let ((x (+ (game-state-p-x gs) dx))
