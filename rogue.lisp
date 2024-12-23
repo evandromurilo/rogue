@@ -128,11 +128,13 @@
 		       while line
 		       collect line)))
       (let* ((height (length lines))
-	     (width (length (car lines)))
-	     (game-map (make-array (list height width))))
+	     (width (apply #'max (mapcar #'length lines)))
+	     (game-map (make-array (list height width) :initial-element #\  )))
 	(dotimes (row height)
-	  (dotimes (col width)
-	    (setf (aref game-map row col) (char (nth row lines) col))))
+	  (let ((line (nth row lines)))
+	    (dotimes (col width)
+	      (when (< col (length line))
+		(setf (aref game-map row col) (char line col))))))
 	game-map))))
       
 

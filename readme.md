@@ -10,3 +10,4 @@ basic combat
 [x] vision and map discovery
 [x] do not see beyond vision
 [x] do not see through walls
+map scrolling
