@@ -59,7 +59,7 @@
       #\ ))
 
 (defun discover (gs)
-  (let ((view-range 2)
+  (let ((view-range 3)
 	(x (game-state-p-x gs))
 	(y (game-state-p-y gs))
 	(w (game-state-width gs))
@@ -68,9 +68,31 @@
 	  (hx (min (+ x view-range)  w)) ;; high x
 	  (ly (max (- y view-range)  0)) ;; low y
 	  (hy (min (+ y view-range)  h))) ;; high y
-      (loop for x from lx to (- hx 1) do
-	(loop for y from ly to (- hy 1) do
-	  (setf (aref (game-state-discovered gs) y x) t))))))
+      (loop for tx from lx to (- hx 1) do
+	(loop for ty from ly to (- hy 1) do
+	  (if (has-direct-path gs x y tx ty)
+	      (setf (aref (game-state-discovered gs) ty tx) t)))))))
+
+(defun has-direct-path (gs sx sy tx ty)
+  (cond ((and (= sx tx) (= sy ty)) t) ;; already there
+	((eq (tile-at gs sx sy) #\#) nil) ;; cannot pass a wall
+	((and (> sx tx) (= sy ty))
+	 (has-direct-path gs (- sx 1) sy tx ty)) ;; directly to the left
+	((and (< sx tx) (= sy ty))
+	 (has-direct-path gs (+ sx 1) sy tx ty)) ;; directly to the right
+	((and (= sx tx) (> sy ty))
+	 (has-direct-path gs sx (- sy 1) tx ty)) ;; directly above
+	((and (= sx tx) (< sy ty))
+	 (has-direct-path gs sx (+ sy 1) tx ty)) ;; directly below
+	((and (< sx tx) (< sy ty))
+	 (has-direct-path gs (+ sx 1) (+ sy 1) tx ty)) ;; diagonal
+	((and (< sx tx) (> sy ty))
+	 (has-direct-path gs (+ sx 1) (- sy 1) tx ty)) ;; diagonal
+	((and (> sx tx) (> sy ty))
+	 (has-direct-path gs (- sx 1) (- sy 1) tx ty)) ;; diagonal
+	((and (> sx tx) (< sy ty))
+	 (has-direct-path gs (- sx 1) (+ sy 1) tx ty)) ;; diagonal
+	(t nil)))
 	   
 (defun attempt-move (gs dx dy)
   (let ((x (+ (game-state-p-x gs) dx))
