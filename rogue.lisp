@@ -59,17 +59,17 @@
       #\ ))
 
 (defun discover (gs)
-  (let ((view-range 3)
+  (let ((view-range 2)
 	(x (game-state-p-x gs))
 	(y (game-state-p-y gs))
 	(w (game-state-width gs))
 	(h (game-state-height gs)))
     (let ((lx (max (- x view-range)  0)) ;; low x
-	  (hx (min (+ x view-range)  w)) ;; high x
+	  (hx (min (+ x view-range)  (- w 1))) ;; high x
 	  (ly (max (- y view-range)  0)) ;; low y
-	  (hy (min (+ y view-range)  h))) ;; high y
-      (loop for tx from lx to (- hx 1) do
-	(loop for ty from ly to (- hy 1) do
+	  (hy (min (+ y view-range)  (- h 1)))) ;; high y
+      (loop for tx from lx to hx do
+	(loop for ty from ly to hy do
 	  (if (has-direct-path gs x y tx ty)
 	      (setf (aref (game-state-discovered gs) ty tx) t)))))))
 
