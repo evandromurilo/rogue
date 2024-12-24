@@ -11,4 +11,4 @@ basic combat
 [x] do not see beyond vision
 [x] do not see through walls
 [X] map scrolling
-wider map
+[x] wider map
