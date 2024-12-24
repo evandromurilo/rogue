@@ -24,17 +24,22 @@
       
       (loop
 	(charms/ll:clear)
-	(dotimes (row (game-state-height gs))
-	  (dotimes (col (game-state-width gs))
-	    (if (is-visible gs col row)
+
+	(multiple-value-bind (sx sy ex ey) (get-viewport gs)
+	  (loop for x from sx to ex do
+	    (loop for y from sy to ey do
+	      (if (is-visible gs x y)
 		(setf attr (charms/ll:color-pair 1))
 		(setf attr (charms/ll:color-pair 2)))
-	    (charms/ll:attron attr)
-	    (charms/ll:mvaddch row col (char-code (visible-tile-at gs col row)))))
-	(setf attr (charms/ll:color-pair 1))
-	(charms/ll:attron attr)
-	(charms/ll:mvaddch (game-state-p-y gs) (game-state-p-x gs) (char-code #\@))
+	      (charms/ll:attron attr)
+	      (charms/ll:mvaddch (- y sy) (- x sx) (char-code (visible-tile-at gs x y)))))
+	
+	  (setf attr (charms/ll:color-pair 1))
+	  (charms/ll:attron attr)
+	  (charms/ll:mvaddch (- (game-state-p-y gs) sy) (- (game-state-p-x gs) sx) (char-code #\@)))
+	
 	(charms/ll:mvaddstr (+ (game-state-height gs) 1) 0 (game-state-msg gs))
+	(charms/ll:mvaddstr (+ (game-state-height gs) 2) 0 (format nil "(~a, ~a)" (game-state-p-x gs) (game-state-p-y gs)))
 	(charms/ll:refresh)
 	(let ((ch (charms/ll:getch)))
 	  (case (code-char ch)
@@ -60,6 +65,29 @@
     (discover gs)
     gs))
 
+(defun get-viewport (gs)
+  (let* ((a 10)
+	 (b (* a 2))
+	 (px (game-state-p-x gs))
+	 (py (game-state-p-y gs))
+	 (w  (- (game-state-width gs) 1))
+	 (h  (- (game-state-height gs) 1))
+	 (sx (max (- px 10) 0))
+	 (sy (max (- py 10) 0))
+	 (ex (min (+ px 10) w))
+	 (ey (min (+ py 10) h))
+	 (dx (- b (- ex sx)))
+	 (dy (- b (- ey sy))))
+    (when (> dx 0)
+      (if (= sx 0)
+	  (incf ex dx)
+	  (decf sx dx)))
+    (when (> dy 0)
+      (if (= sy 0)
+	  (incf ey dy)
+	  (decf sy dy)))
+    (values sx sy ex ey)))
+	    	    
 (defun tile-at (gs x y)
   (aref (game-state-map gs) y x))
 
@@ -104,7 +132,7 @@
 	 (has-direct-path gs (- sx 1) (+ sy 1) tx ty)) ;; diagonal
 	(t nil)))
 
-(defun is-visible (gs tx ty)
+(defun is-visible (gs tx ty) ;; in view range of player
   (let ((view-range 2)
 	(dx (abs (- (game-state-p-x gs) tx)))
 	(dy (abs (- (game-state-p-y gs) ty))))
