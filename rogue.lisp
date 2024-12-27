@@ -7,6 +7,7 @@
 (in-package :rogue)
 
 (defstruct game-state
+  (level 1)
   (map nil)
   (width 0)
   (height 0)
@@ -51,12 +52,14 @@
 	    (#\u (attempt-move gs  1 -1))
 	    (#\b (attempt-move gs -1  1))
 	    (#\n (attempt-move gs  1  1))
+	    (#\> (attempt-descend-stairs gs))
+	    (#\< (attempt-ascend-stairs gs))
 	    (#\q (return))
 	    (otherwise nil)))))))
 
 (defun init-game-state ()
   (let ((gs (make-game-state
-	     :map (load-map))))
+	     :map (load-map 1))))
     (setf (game-state-width gs)
 	  (array-dimension (game-state-map gs) 1))
     (setf (game-state-height gs)
@@ -151,9 +154,25 @@
 		   (setf (game-state-p-x gs) x)
 		   (setf (game-state-p-y gs) y)
 		   (discover gs))))))
+
+(defun attempt-descend-stairs (gs)
+  (if (eq (tile-at gs (game-state-p-x gs) (game-state-p-y gs)) #\>)
+      (progn
+	(incf (game-state-level gs))
+	(setf (game-state-map gs) (load-map (game-state-level gs)))
+	(setf (game-state-msg gs) "You descend deeper!"))
+      (setf (game-state-msg gs) "You see no stair going down.")))
+
+(defun attempt-ascend-stairs (gs)
+  (if (eq (tile-at gs (game-state-p-x gs) (game-state-p-y gs)) #\<)
+      (progn
+	(decf (game-state-level gs))
+	(setf (game-state-map gs) (load-map (game-state-level gs)))
+	(setf (game-state-msg gs) "You ascend a level!!"))
+      (setf (game-state-msg gs) "You see no stair going up.")))
     
-(defun load-map ()
-  (with-open-file (stream "map.txt" :direction :input)
+(defun load-map (level)
+  (with-open-file (stream (format nil "map~a.txt" level) :direction :input)
     (let ((lines (loop for line = (read-line stream nil nil)
 		       while line
 		       collect line)))

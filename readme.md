@@ -12,3 +12,4 @@ basic combat
 [x] do not see through walls
 [X] map scrolling
 [x] wider map
+map transition
