@@ -6,15 +6,18 @@
 
 (in-package :rogue)
 
-(defstruct game-state
-  (level 1)
-  (map nil)
-  (width 0)
-  (height 0)
-  (msg "Welcome to the dungeon")
-  (discovered nil)
-  (p-x 5)
-  (p-y 5))
+(defclass game-map ()
+    ((gmap :initarg :gmap :accessor gmap)
+     (level :initarg :level :accessor level :initform 1)
+     (width :initarg :width :accessor width)
+     (height :initarg :height :accessor height)
+     (discovered :initarg discovered :accessor discovered)))
+     
+(defclass game-state ()
+  ((gmap :initarg :gmap :accessor gmap)
+   (msg :initarg :msg :accessor msg :initform "Welcome to the dungeon")
+   (px :initarg :px :accessor px :initform 5)
+   (py :initarg :py :accessor py :initform 5)))
 
 (defun main ()
   (let ((gs (init-game-state)))
@@ -37,12 +40,13 @@
 	
 	  (setf attr (charms/ll:color-pair 1))
 	  (charms/ll:attron attr)
-	  (charms/ll:mvaddch (- (game-state-p-y gs) sy) (- (game-state-p-x gs) sx) (char-code #\@)))
+	  (charms/ll:mvaddch (- (py gs) sy) (- (px gs) sx) (char-code #\@)))
 	
-	(charms/ll:mvaddstr (+ (game-state-height gs) 1) 0 (game-state-msg gs))
-	(charms/ll:mvaddstr (+ (game-state-height gs) 2) 0 (format nil "(~a, ~a)" (game-state-p-x gs) (game-state-p-y gs)))
+	(charms/ll:mvaddstr (+ (height (gmap gs)) 1) 0 (msg gs))
+	(charms/ll:mvaddstr (+ (height (gmap gs)) 2) 0 (format nil "(~a, ~a)" (px gs) (py gs)))
 	(charms/ll:refresh)
 	(let ((ch (charms/ll:getch)))
+	(charms/ll:mvaddstr (+ (height (gmap gs)) 2)
 	  (case (code-char ch)
 	    (#\h (attempt-move gs -1  0))
 	    (#\j (attempt-move gs  0  1))
@@ -57,14 +61,21 @@
 	    (#\q (return))
 	    (otherwise nil)))))))
 
+(defun init-map (level)
+  (let ((gm (make-instance 'game-map
+			   :level level
+			   :gmap (load-map level))))
+    (setf (width gm)
+	  (array-dimension (gmap gm) 1))
+    (setf (height gm)
+	  (array-dimension (gmap gm) 0))
+    (setf (discovered gm)
+	  (make-array (list (height gm) (width gm)) :initial-element nil))
+    gm))
+
 (defun init-game-state ()
-  (let ((gs (make-game-state
-	     :map (load-map 1))))
-    (setf (game-state-width gs)
-	  (array-dimension (game-state-map gs) 1))
-    (setf (game-state-height gs)
-	  (array-dimension (game-state-map gs) 0))
-    (setf (game-state-discovered gs) (make-array (list (game-state-height gs) (game-state-width gs)) :initial-element nil))
+  (let ((gs (make-instance 'game-state
+			  :gmap (init-map 1))))
     (discover gs)
     gs))
 
@@ -73,10 +84,10 @@
 	 (by (* ay 2))
 	 (ax 18)
 	 (bx (* ax 2))
-	 (px (game-state-p-x gs))
-	 (py (game-state-p-y gs))
-	 (w  (- (game-state-width gs) 1))
-	 (h  (- (game-state-height gs) 1))
+	 (px (px gs))
+	 (py (py gs))
+	 (w  (- (width (gmap gs)) 1))
+	 (h  (- (height (gmap gs)) 1))
 	 (sx (max (- px ax) 0))
 	 (sy (max (- py ay) 0))
 	 (ex (min (+ px ax) w))
@@ -94,19 +105,19 @@
     (values sx sy ex ey)))
 	    	    
 (defun tile-at (gs x y)
-  (aref (game-state-map gs) y x))
+  (aref (gmap (gmap gs)) y x))
 
 (defun visible-tile-at (gs x y)
-  (if (aref (game-state-discovered gs) y x)
+  (if (aref (discovered (gmap gs)) y x)
       (tile-at gs x y)
       #\ ))
 
 (defun discover (gs)
   (let ((view-range 2)
-	(x (game-state-p-x gs))
-	(y (game-state-p-y gs))
-	(w (game-state-width gs))
-	(h (game-state-height gs)))
+	(x (px gs))
+	(y (py gs))
+	(w (width (gmap gs)))
+	(h (height (gmap gs))))
     (let ((lx (max (- x view-range)  0)) ;; low x
 	  (hx (min (+ x view-range)  (- w 1))) ;; high x
 	  (ly (max (- y view-range)  0)) ;; low y
@@ -114,7 +125,7 @@
       (loop for tx from lx to hx do
 	(loop for ty from ly to hy do
 	  (if (has-direct-path gs x y tx ty)
-	      (setf (aref (game-state-discovered gs) ty tx) t)))))))
+	      (setf (aref (discovered (gmap gs)) ty tx) t)))))))
 
 (defun has-direct-path (gs sx sy tx ty)
   (cond ((and (= sx tx) (= sy ty)) t) ;; already there
@@ -139,33 +150,33 @@
 
 (defun is-visible (gs tx ty) ;; in view range of player
   (let ((view-range 2)
-	(dx (abs (- (game-state-p-x gs) tx)))
-	(dy (abs (- (game-state-p-y gs) ty))))
+	(dx (abs (- (px gs) tx)))
+	(dy (abs (- (py gs) ty))))
     (and (<= (max dx dy) view-range)
-	 (has-direct-path gs (game-state-p-x gs) (game-state-p-y gs) tx ty))))
+	 (has-direct-path gs (px gs) (py gs) tx ty))))
 	   
 (defun attempt-move (gs dx dy)
-  (let ((x (+ (game-state-p-x gs) dx))
-	(y (+ (game-state-p-y gs) dy)))
+  (let ((x (+ (px gs) dx))
+	(y (+ (py gs) dy)))
     (case (tile-at gs x y)
-      (#\# (setf (game-state-msg gs) "There is a wall there!"))
+      (#\# (setf (msg gs) "There is a wall there!"))
       (otherwise (progn
-		   (setf (game-state-msg gs) "")
-		   (setf (game-state-p-x gs) x)
-		   (setf (game-state-p-y gs) y)
+		   (setf (msg gs) "")
+		   (setf (px gs) x)
+		   (setf (py gs) y)
 		   (discover gs))))))
 
 (defun attempt-descend-stairs (gs)
-  (if (eq (tile-at gs (game-state-p-x gs) (game-state-p-y gs)) #\>)
-      (progn
+  (if (eq (tile-at gs (px gs) (-y gs)) #\>)
+      (progn ;; TODO
 	(incf (game-state-level gs))
 	(setf (game-state-map gs) (load-map (game-state-level gs)))
 	(setf (game-state-msg gs) "You descend deeper!"))
       (setf (game-state-msg gs) "You see no stair going down.")))
 
 (defun attempt-ascend-stairs (gs)
-  (if (eq (tile-at gs (game-state-p-x gs) (game-state-p-y gs)) #\<)
-      (progn
+  (if (eq (tile-at gs (px gs) (py gs)) #\<)
+      (progn ;; TODO
 	(decf (game-state-level gs))
 	(setf (game-state-map gs) (load-map (game-state-level gs)))
 	(setf (game-state-msg gs) "You ascend a level!!"))
