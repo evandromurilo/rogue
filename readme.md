@@ -13,5 +13,5 @@ basic combat
 [X] map scrolling
 [x] wider map
 [x] map transition
-visible area per level
+[x] visible area per level
 turn stair into struct (so we can go to arbitrary maps and x y locations)

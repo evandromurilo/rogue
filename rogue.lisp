@@ -184,7 +184,7 @@
 
 (defun attempt-ascend-stairs (gs)
   (if (eq (tile-at gs (px gs) (py gs)) #\<)
-      (progn ;; TODO
+      (progn 
 	(select-map gs (- (level (gmap gs)) 1))
 	(setf (msg gs) "You ascend a level!!"))
       (setf (msg gs) "You see no stair going up.")))
