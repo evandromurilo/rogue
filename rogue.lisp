@@ -6,8 +6,8 @@
 
 (in-package :rogue)
 
-(defparameter screen-height 24)
-(defparameter view-range 2)
+(defparameter *screen-height* 24)
+(defparameter *view-range* 2)
 
 (defclass game-map ()
     ((gmap :initarg :gmap :accessor gmap)
@@ -20,8 +20,18 @@
   ((gmap :initarg :gmap :accessor gmap)
    (msg :initarg :msg :accessor msg :initform "Welcome to the dungeon")
    (px :initarg :px :accessor px :initform 5)
-   (py :initarg :py :accessor py :initform 5)))
+   (py :initarg :py :accessor py :initform 5)
+   (map-hash :initarg :map-hash :accessor map-hash :initform nil)))
 
+(defmethod select-map ((gs game-state) level)
+  (cond ((gethash level (map-hash gs))
+	 (setf (gmap gs) (gethash level (map-hash gs))))
+	(t
+	 (let ((gmap (init-map level)))
+	   (setf (gethash level (map-hash gs)) gmap)
+	   (setf (gmap gs) gmap))))
+  (discover gs))
+  
 (defun main ()
   (let ((gs (init-game-state)))
     (charms:with-curses ()
@@ -44,8 +54,8 @@
 	  (setf attr (charms/ll:color-pair 1))
 	  (charms/ll:attron attr)
 	  (charms/ll:mvaddch (- (py gs) sy) (- (px gs) sx) (char-code #\@))
-	  (charms/ll:mvaddstr (+ screen-height 1) 0 (msg gs))
-	  (charms/ll:mvaddstr (+ screen-height 2) 0 (format nil "(~a, ~a)" (px gs) (py gs))))
+	  (charms/ll:mvaddstr (+ *screen-height* 1) 0 (msg gs))
+	  (charms/ll:mvaddstr (+ *screen-height* 2) 0 (format nil "(~a, ~a)" (px gs) (py gs))))
 
 	(charms/ll:refresh)
 	(let ((ch (charms/ll:getch)))
@@ -76,14 +86,13 @@
     gm))
 
 (defun init-game-state ()
-  (let ((gs (make-instance 'game-state
-			  :gmap (init-map 1))))
-    (discover gs)
+  (let ((gs (make-instance 'game-state :map-hash (make-hash-table))))
+    (select-map gs 1)
     gs))
 
 (defun get-viewport (gs)
-  (let* ((ay (/ screen-height 2))
-	 (by screen-height)
+  (let* ((ay (/ *screen-height* 2))
+	 (by *screen-height*)
 	 (ax 18)
 	 (bx (* ax 2))
 	 (px (px gs))
@@ -119,10 +128,10 @@
 	(y (py gs))
 	(w (width (gmap gs)))
 	(h (height (gmap gs))))
-    (let ((lx (max (- x view-range)  0)) ;; low x
-	  (hx (min (+ x view-range)  (- w 1))) ;; high x
-	  (ly (max (- y view-range)  0)) ;; low y
-	  (hy (min (+ y view-range)  (- h 1)))) ;; high y
+    (let ((lx (max (- x *view-range*)  0)) ;; low x
+	  (hx (min (+ x *view-range*)  (- w 1))) ;; high x
+	  (ly (max (- y *view-range*)  0)) ;; low y
+	  (hy (min (+ y *view-range*)  (- h 1)))) ;; high y
       (loop for tx from lx to hx do
 	(loop for ty from ly to hy do
 	  (if (has-direct-path gs x y tx ty)
@@ -152,7 +161,7 @@
 (defun is-visible (gs tx ty) ;; in view range of player
   (let ((dx (abs (- (px gs) tx)))
 	(dy (abs (- (py gs) ty))))
-    (and (<= (max dx dy) view-range)
+    (and (<= (max dx dy) *view-range*)
 	 (has-direct-path gs (px gs) (py gs) tx ty))))
 	   
 (defun attempt-move (gs dx dy)
@@ -167,20 +176,18 @@
 		   (discover gs))))))
 
 (defun attempt-descend-stairs (gs)
-  (if (eq (tile-at gs (px gs) (-y gs)) #\>)
-      (progn ;; TODO
-	(incf (game-state-level gs))
-	(setf (game-state-map gs) (load-map (game-state-level gs)))
-	(setf (game-state-msg gs) "You descend deeper!"))
-      (setf (game-state-msg gs) "You see no stair going down.")))
+  (if (eq (tile-at gs (px gs) (py gs)) #\>)
+      (progn
+	(select-map gs (+ (level (gmap gs)) 1))
+	(setf (msg gs) "You descend deeper!"))
+      (setf (msg gs) "You see no stair going down.")))
 
 (defun attempt-ascend-stairs (gs)
   (if (eq (tile-at gs (px gs) (py gs)) #\<)
       (progn ;; TODO
-	(decf (game-state-level gs))
-	(setf (game-state-map gs) (load-map (game-state-level gs)))
-	(setf (game-state-msg gs) "You ascend a level!!"))
-      (setf (game-state-msg gs) "You see no stair going up.")))
+	(select-map gs (- (level (gmap gs)) 1))
+	(setf (msg gs) "You ascend a level!!"))
+      (setf (msg gs) "You see no stair going up.")))
     
 (defun load-map (level)
   (with-open-file (stream (format nil "map~a.txt" level) :direction :input)
