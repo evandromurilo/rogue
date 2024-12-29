@@ -6,6 +6,9 @@
 
 (in-package :rogue)
 
+(defparameter screen-height 24)
+(defparameter view-range 2)
+
 (defclass game-map ()
     ((gmap :initarg :gmap :accessor gmap)
      (level :initarg :level :accessor level :initform 1)
@@ -41,8 +44,8 @@
 	  (setf attr (charms/ll:color-pair 1))
 	  (charms/ll:attron attr)
 	  (charms/ll:mvaddch (- (py gs) sy) (- (px gs) sx) (char-code #\@))
-	  (charms/ll:mvaddstr (+ 24 1) 0 (msg gs))
-	  (charms/ll:mvaddstr (+ 24 2) 0 (format nil "(~a, ~a)" (px gs) (py gs))))
+	  (charms/ll:mvaddstr (+ screen-height 1) 0 (msg gs))
+	  (charms/ll:mvaddstr (+ screen-height 2) 0 (format nil "(~a, ~a)" (px gs) (py gs))))
 
 	(charms/ll:refresh)
 	(let ((ch (charms/ll:getch)))
@@ -79,8 +82,8 @@
     gs))
 
 (defun get-viewport (gs)
-  (let* ((ay 12)
-	 (by (* ay 2))
+  (let* ((ay (/ screen-height 2))
+	 (by screen-height)
 	 (ax 18)
 	 (bx (* ax 2))
 	 (px (px gs))
@@ -112,8 +115,7 @@
       #\ ))
 
 (defun discover (gs)
-  (let ((view-range 2)
-	(x (px gs))
+  (let ((x (px gs))
 	(y (py gs))
 	(w (width (gmap gs)))
 	(h (height (gmap gs))))
@@ -148,8 +150,7 @@
 	(t nil)))
 
 (defun is-visible (gs tx ty) ;; in view range of player
-  (let ((view-range 2)
-	(dx (abs (- (px gs) tx)))
+  (let ((dx (abs (- (px gs) tx)))
 	(dy (abs (- (py gs) ty))))
     (and (<= (max dx dy) view-range)
 	 (has-direct-path gs (px gs) (py gs) tx ty))))
