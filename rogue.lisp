@@ -21,8 +21,17 @@
    (msg :initarg :msg :accessor msg :initform "Welcome to the dungeon")
    (px :initarg :px :accessor px :initform 5)
    (py :initarg :py :accessor py :initform 5)
+   (stair-list :initarg stair-list :accessor stair-list :initform nil)
    (map-hash :initarg :map-hash :accessor map-hash :initform nil)))
 
+(defstruct stair-pair
+  (start 0)
+  (sx 0)
+  (sy 0)
+  (end 0)
+  (ex 0)
+  (ey 0))
+      
 (defmethod select-map ((gs game-state) level)
   (cond ((gethash level (map-hash gs))
 	 (setf (gmap gs) (gethash level (map-hash gs))))
@@ -86,7 +95,12 @@
     gm))
 
 (defun init-game-state ()
-  (let ((gs (make-instance 'game-state :map-hash (make-hash-table))))
+  (let ((gs (make-instance 'game-state :map-hash (make-hash-table)))
+	(stair-list nil))
+    (push (make-stair-pair :start 1 :sx 22 :sy 10
+			   :end   2 :ex 5  :ey 5)
+	  stair-list)
+    (setf (stair-list gs) stair-list)
     (select-map gs 1)
     gs))
 
@@ -120,8 +134,25 @@
 
 (defun visible-tile-at (gs x y)
   (if (aref (discovered (gmap gs)) y x)
-      (tile-at gs x y)
+      (cond ((ascending-stair-at gs x y) #\<)
+	    ((descending-stair-at gs x y) #\>)
+	    (t (tile-at gs x y)))
       #\ ))
+
+;; TODO find a better way of finding stairs, curently we iterate all stairs on all visible coordinates every frame
+(defun ascending-stair-at (gs x y)
+  (find-if (lambda (s)
+	     (and (= (stair-pair-end s) (level (gmap gs)))
+		  (= (stair-pair-ex s) x)
+		  (= (stair-pair-ey s) y)))
+	   (stair-list gs)))
+
+(defun descending-stair-at (gs x y)
+  (find-if (lambda (s)
+	     (and (= (stair-pair-start s) (level (gmap gs)))
+		  (= (stair-pair-sx s) x)
+		  (= (stair-pair-sy s) y)))
+	   (stair-list gs)))
 
 (defun discover (gs)
   (let ((x (px gs))
@@ -176,19 +207,25 @@
 		   (discover gs))))))
 
 (defun attempt-descend-stairs (gs)
-  (if (eq (tile-at gs (px gs) (py gs)) #\>)
-      (progn
-	(select-map gs (+ (level (gmap gs)) 1))
-	(setf (msg gs) "You descend deeper!"))
-      (setf (msg gs) "You see no stair going down.")))
+  (let ((stair (descending-stair-at gs (px gs) (py gs))))
+    (if stair
+        (progn
+	  (setf (px gs) (stair-pair-ex stair))
+	  (setf (py gs) (stair-pair-ey stair))
+	  (select-map gs (stair-pair-end stair))
+	  (setf (msg gs) "You descend deeper!"))
+	(setf (msg gs) "You see no stair going down."))))
 
 (defun attempt-ascend-stairs (gs)
-  (if (eq (tile-at gs (px gs) (py gs)) #\<)
-      (progn 
-	(select-map gs (- (level (gmap gs)) 1))
-	(setf (msg gs) "You ascend a level!!"))
-      (setf (msg gs) "You see no stair going up.")))
-    
+    (let ((stair (ascending-stair-at gs (px gs) (py gs))))
+    (if stair
+        (progn
+	  (setf (px gs) (stair-pair-sx stair))
+	  (setf (py gs) (stair-pair-sy stair))
+	  (select-map gs (stair-pair-start stair))
+	  (setf (msg gs) "You ascend a level!"))
+	(setf (msg gs) "You see no stair going up."))))
+
 (defun load-map (level)
   (with-open-file (stream (format nil "map~a.txt" level) :direction :input)
     (let ((lines (loop for line = (read-line stream nil nil)

@@ -14,4 +14,5 @@ basic combat
 [x] wider map
 [x] map transition
 [x] visible area per level
-turn stair into struct (so we can go to arbitrary maps and x y locations)
+[x] turn stair into struct (so we can go to arbitrary maps and x y locations)
+generate stairs randomly
