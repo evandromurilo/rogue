@@ -40,13 +40,12 @@
 	
 	  (setf attr (charms/ll:color-pair 1))
 	  (charms/ll:attron attr)
-	  (charms/ll:mvaddch (- (py gs) sy) (- (px gs) sx) (char-code #\@)))
-	
-	(charms/ll:mvaddstr (+ (height (gmap gs)) 1) 0 (msg gs))
-	(charms/ll:mvaddstr (+ (height (gmap gs)) 2) 0 (format nil "(~a, ~a)" (px gs) (py gs)))
+	  (charms/ll:mvaddch (- (py gs) sy) (- (px gs) sx) (char-code #\@))
+	  (charms/ll:mvaddstr (+ 24 1) 0 (msg gs))
+	  (charms/ll:mvaddstr (+ 24 2) 0 (format nil "(~a, ~a)" (px gs) (py gs))))
+
 	(charms/ll:refresh)
 	(let ((ch (charms/ll:getch)))
-	(charms/ll:mvaddstr (+ (height (gmap gs)) 2)
 	  (case (code-char ch)
 	    (#\h (attempt-move gs -1  0))
 	    (#\j (attempt-move gs  0  1))
