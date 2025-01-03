@@ -16,3 +16,4 @@ basic combat
 [x] visible area per level
 [x] turn stair into struct (so we can go to arbitrary maps and x y locations)
 generate stairs randomly
+basic inventory and get item

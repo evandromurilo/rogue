@@ -14,6 +14,7 @@
      (level :initarg :level :accessor level :initform 1)
      (width :initarg :width :accessor width)
      (height :initarg :height :accessor height)
+     (lost-items :accessor lost-items :initform nil)
      (discovered :initarg discovered :accessor discovered)))
      
 (defclass game-state ()
@@ -21,6 +22,7 @@
    (msg :initarg :msg :accessor msg :initform "Welcome to the dungeon")
    (px :initarg :px :accessor px :initform 5)
    (py :initarg :py :accessor py :initform 5)
+   (inventory :accessor inventory)
    (stair-list :initarg stair-list :accessor stair-list :initform nil)
    (map-hash :initarg :map-hash :accessor map-hash :initform nil)))
 
@@ -31,7 +33,14 @@
   (end 0)
   (ex 0)
   (ey 0))
-      
+
+(defstruct game-item
+  (x 0)
+  (y 0)
+  (name "Lost socks")
+  (quantity 1)
+  (value 0))
+        
 (defmethod select-map ((gs game-state) level)
   (cond ((gethash level (map-hash gs))
 	 (setf (gmap gs) (gethash level (map-hash gs))))
@@ -79,6 +88,7 @@
 	    (#\n (attempt-move gs  1  1))
 	    (#\> (attempt-descend-stairs gs))
 	    (#\< (attempt-ascend-stairs gs))
+	    (#\. (look-at gs (px gs) (py gs)))
 	    (#\q (return))
 	    (otherwise nil)))))))
 
@@ -100,8 +110,9 @@
     (push (make-stair-pair :start 1 :sx 22 :sy 10
 			   :end   2 :ex 5  :ey 5)
 	  stair-list)
-    (setf (stair-list gs) stair-list)
+  (setf (stair-list gs) stair-list)
     (select-map gs 1)
+    (push (make-game-item :x 8 :y 10) (lost-items (gmap gs)))
     gs))
 
 (defun get-viewport (gs)
@@ -136,6 +147,7 @@
   (if (aref (discovered (gmap gs)) y x)
       (cond ((ascending-stair-at gs x y) #\<)
 	    ((descending-stair-at gs x y) #\>)
+	    ((item-at gs x y) #\!)
 	    (t (tile-at gs x y)))
       #\ ))
 
@@ -153,6 +165,22 @@
 		  (= (stair-pair-sx s) x)
 		  (= (stair-pair-sy s) y)))
 	   (stair-list gs)))
+
+(defun item-at (gs x y)
+  (find-if (lambda (i)
+	     (and (= (game-item-x i) x)
+		  (= (game-item-y i) y)))
+	   (lost-items (gmap gs))))
+
+(defun look-at (gs x y)
+  (let ((item (item-at gs x y)))
+    (if item
+	(setf (msg gs)
+	      (format nil "You see \"~a\" (x~a)"
+		      (game-item-name item)
+		      (game-item-quantity item)))
+	(setf (msg gs) "Nothing here"))))
+			             
 
 (defun discover (gs)
   (let ((x (px gs))
