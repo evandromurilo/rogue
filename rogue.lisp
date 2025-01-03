@@ -22,7 +22,7 @@
    (msg :initarg :msg :accessor msg :initform "Welcome to the dungeon")
    (px :initarg :px :accessor px :initform 5)
    (py :initarg :py :accessor py :initform 5)
-   (inventory :accessor inventory)
+   (inventory :accessor inventory :initform nil)
    (stair-list :initarg stair-list :accessor stair-list :initform nil)
    (map-hash :initarg :map-hash :accessor map-hash :initform nil)))
 
@@ -89,6 +89,7 @@
 	    (#\> (attempt-descend-stairs gs))
 	    (#\< (attempt-ascend-stairs gs))
 	    (#\. (look-at gs (px gs) (py gs)))
+	    (#\, (take-at gs (px gs) (py gs)))
 	    (#\q (return))
 	    (otherwise nil)))))))
 
@@ -185,7 +186,26 @@
 			     (game-item-name item)
 			     (game-item-quantity item)))
 	       (setf (msg gs) "Nothing here"))))))
-	
+
+(defun take-at (gs x y)
+  (let ((item (item-at gs x y)))
+    (if item
+	(progn
+	  (add-to-inventory gs item)
+	  (setf (msg gs)
+		(format nil "You take \"~a\" (x~a)"
+			(game-item-name item)
+			(game-item-quantity item)))
+	  (remove-item gs item))
+	(setf (msg gs) "Nothing to take here"))))
+
+(defun add-to-inventory (gs item)
+  (push item (inventory gs)))
+
+(defun remove-item (gs item)
+  (setf (lost-items (gmap gs))
+	(remove item (lost-items (gmap gs)))))
+  	
 (defun discover (gs)
   (let ((x (px gs))
 	(y (py gs))
