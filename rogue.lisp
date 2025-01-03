@@ -173,15 +173,19 @@
 	   (lost-items (gmap gs))))
 
 (defun look-at (gs x y)
-  (let ((item (item-at gs x y)))
-    (if item
-	(setf (msg gs)
-	      (format nil "You see \"~a\" (x~a)"
-		      (game-item-name item)
-		      (game-item-quantity item)))
-	(setf (msg gs) "Nothing here"))))
-			             
-
+  (cond ((descending-stair-at gs x y)
+	 (setf (msg gs) "You see a stair going down."))
+	((ascending-stair-at gs x y)
+	 (setf (msg gs) "You see a stair going up."))
+	(t
+	 (let ((item (item-at gs x y)))
+	   (if item
+	       (setf (msg gs)
+		     (format nil "You see \"~a\" (x~a)"
+			     (game-item-name item)
+			     (game-item-quantity item)))
+	       (setf (msg gs) "Nothing here"))))))
+	
 (defun discover (gs)
   (let ((x (px gs))
 	(y (py gs))
