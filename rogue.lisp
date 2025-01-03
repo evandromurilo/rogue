@@ -22,6 +22,9 @@
    (msg :initarg :msg :accessor msg :initform "Welcome to the dungeon")
    (px :initarg :px :accessor px :initform 5)
    (py :initarg :py :accessor py :initform 5)
+   (cx :initarg :cx :accessor cx :initform 5)
+   (cy :initarg :cy :accessor cy :initform 5)
+   (phase :accessor game-phase :initform :playing)
    (inventory :accessor inventory :initform nil)
    (stair-list :initarg stair-list :accessor stair-list :initform nil)
    (map-hash :initarg :map-hash :accessor map-hash :initform nil)))
@@ -72,26 +75,45 @@
 	  (setf attr (charms/ll:color-pair 1))
 	  (charms/ll:attron attr)
 	  (charms/ll:mvaddch (- (py gs) sy) (- (px gs) sx) (char-code #\@))
+	  
+	  (when (equal (game-phase gs) :exploring)
+	    (charms/ll:mvaddch (- (cy gs) sy) (- (cx gs) sx) (char-code #\x)))
+	  
 	  (charms/ll:mvaddstr (+ *screen-height* 1) 0 (msg gs))
 	  (charms/ll:mvaddstr (+ *screen-height* 2) 0 (format nil "(~a, ~a)" (px gs) (py gs))))
 
 	(charms/ll:refresh)
-	(let ((ch (charms/ll:getch)))
-	  (case (code-char ch)
-	    (#\h (attempt-move gs -1  0))
-	    (#\j (attempt-move gs  0  1))
-	    (#\k (attempt-move gs  0 -1))
-	    (#\l (attempt-move gs  1  0))
-	    (#\y (attempt-move gs -1 -1))
-	    (#\u (attempt-move gs  1 -1))
-	    (#\b (attempt-move gs -1  1))
-	    (#\n (attempt-move gs  1  1))
-	    (#\> (attempt-descend-stairs gs))
-	    (#\< (attempt-ascend-stairs gs))
-	    (#\. (look-at gs (px gs) (py gs)))
-	    (#\, (take-at gs (px gs) (py gs)))
-	    (#\q (return))
-	    (otherwise nil)))))))
+	(let ((ch (charms/ll:getch))
+	      (phase (game-phase gs)))
+	  (case phase
+	    (:playing
+	     (case (code-char ch)
+	       (#\h (attempt-move gs -1  0))
+	       (#\j (attempt-move gs  0  1))
+	       (#\k (attempt-move gs  0 -1))
+	       (#\l (attempt-move gs  1  0))
+	       (#\y (attempt-move gs -1 -1))
+	       (#\u (attempt-move gs  1 -1))
+	       (#\b (attempt-move gs -1  1))
+	       (#\n (attempt-move gs  1  1))
+	       (#\> (attempt-descend-stairs gs))
+	       (#\< (attempt-ascend-stairs gs))
+	       (#\. (look-at gs (px gs) (py gs)))
+	       (#\, (take-at gs (px gs) (py gs)))
+	       (#\x (toggle-xplore gs))
+	       (#\q (return))
+	       (otherwise nil)))
+	    (:exploring
+	     (case (code-char ch)
+	       (#\h (move-cursor gs -1  0))
+	       (#\j (move-cursor gs  0  1))
+	       (#\k (move-cursor gs  0 -1))
+	       (#\l (move-cursor gs  1  0))
+	       (#\y (move-cursor gs -1 -1))
+	       (#\u (move-cursor gs  1 -1))
+	       (#\b (move-cursor gs -1  1))
+	       (#\n (move-cursor gs  1  1))
+	       (#\q (toggle-xplore gs))))))))))
 
 (defun init-map (level)
   (let ((gm (make-instance 'game-map
@@ -140,6 +162,15 @@
 	  (incf ey dy)
 	  (decf sy dy)))
     (values sx sy ex ey)))
+
+(defun toggle-xplore (gs)
+  (if (eq (game-phase gs) :playing)
+      (progn
+	(setf (game-phase gs) :exploring)
+	(setf (cx gs) (px gs))
+	(setf (cy gs) (py gs))
+	(setf (msg gs) "You can look around now"))
+      (setf (game-phase gs) :playing)))
 	    	    
 (defun tile-at (gs x y)
   (aref (gmap (gmap gs)) y x))
@@ -174,19 +205,20 @@
 	   (lost-items (gmap gs))))
 
 (defun look-at (gs x y)
-  (cond ((descending-stair-at gs x y)
-	 (setf (msg gs) "You see a stair going down."))
-	((ascending-stair-at gs x y)
-	 (setf (msg gs) "You see a stair going up."))
-	(t
-	 (let ((item (item-at gs x y)))
-	   (if item
-	       (setf (msg gs)
-		     (format nil "You see \"~a\" (x~a)"
-			     (game-item-name item)
-			     (game-item-quantity item)))
-	       (setf (msg gs) "Nothing here"))))))
-
+  (let ((item (item-at gs x y)))
+    (if item
+	(setf (msg gs)
+	      (format nil "You see \"~a\" (x~a)"
+		      (game-item-name item)
+		      (game-item-quantity item)))
+	(setf (msg gs)
+	      (case (visible-tile-at gs x y)
+		(#\< "You see a stair going down")
+		(#\> "You see a stair going up")
+		(#\# "Wall")
+		(#\  "Darkness")
+		(otherwise "Nothing here"))))))
+		 
 (defun take-at (gs x y)
   (let ((item (item-at gs x y)))
     (if item
@@ -258,6 +290,13 @@
 		   (setf (py gs) y)
 		   (discover gs))))))
 
+(defun move-cursor (gs dx dy)
+  (let ((x (+ (cx gs) dx))
+	(y (+ (cy gs) dy)))
+    (look-at gs x y)
+    (setf (cx gs) x)
+    (setf (cy gs) y)))
+      
 (defun attempt-descend-stairs (gs)
   (let ((stair (descending-stair-at gs (px gs) (py gs))))
     (if stair
